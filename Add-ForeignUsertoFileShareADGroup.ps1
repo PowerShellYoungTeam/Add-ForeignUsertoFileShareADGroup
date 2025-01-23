@@ -12,7 +12,6 @@ The file path to the input CSV file containing user and group information.
 .PARAMETER OutputFolderPath
 The folder path where the log and transcript files will be saved.
 
-
 .PARAMETER Test
 Switch to simulate the operation without making any changes.
 
@@ -20,10 +19,10 @@ Switch to simulate the operation without making any changes.
 Credentials for the foreign domain admin.
 
 .EXAMPLE
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -Test
+.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output"  -Test
 
 .NOTES
-Author: Steven Wight
+Author: Steven Wight with GitHub Copilot
 Date: 23/01/2025
 
 #>
@@ -73,7 +72,6 @@ function Add-ADUserToGroup {
     .PARAMETER UserGroupData
     The object array containing user and group information.
 
-
     .PARAMETER LogFilePath
     The file path where the log will be saved.
 
@@ -84,11 +82,11 @@ function Add-ADUserToGroup {
     Credentials for the foreign domain admin.
 
     .EXAMPLE
-    $userGroupData | Add-ADUserToGroup -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
+    $userGroupData | Add-ADUserToGroup -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
 
     .NOTES
-    Author: Your Name
-    Date: Today's Date
+    Author: Steven Wight with GitHub Copilot
+    Date: 23/01/2025
     #>
 
     begin {
