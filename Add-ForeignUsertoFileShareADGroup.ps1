@@ -22,8 +22,11 @@ Switch to simulate the operation without making any changes.
 .\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -WhatIf
 
 .NOTES
-Author: Your Name
-Date: Today's Date
+Author: Steven Wight
+Date: 23/01/2025
+
+#cd \\ukgcbpro.uk.gcb.corp\gcbdfs\Data\EUTApplicationSource\_Powershell\AD
+#Add-ForeignUsertoFileShareADGroupmk2.ps1 -InputCsvPath c:\temp\Powershell\BarryGroups.csv  -OutputFolderPath c:\temp\Powershell\ 
 #>
 
 param (
@@ -34,38 +37,12 @@ param (
     [string]$OutputFolderPath,
 
     [Parameter(Mandatory = $false)]
-    [int]$TimeLimitInSeconds = 900,
+    [int]$TimeLimitInSeconds = 900
 
-    [switch]$WhatIf
+    
 )
 
-# Generate filenames for the log and transcript files
-$timestamp = (Get-Date).ToString("yyyyMMdd")
-$logFilePath = Join-Path -Path $OutputFolderPath -ChildPath "ADUserToGroupLog_$timestamp.csv"
-$transcriptFilePath = Join-Path -Path $OutputFolderPath -ChildPath "Transcript_$timestamp.txt"
-
-# Start transcript
-Start-Transcript -Path $transcriptFilePath
-
-# Import the CSV file
-$data = Import-Csv -Path $InputCsvPath
-
-# Build an object array from the CSV data
-$userGroupData = @()
-foreach ($row in $data) {
-    $userGroupData += [PSCustomObject]@{
-        SourceDomain = $row.SourceDomain
-        SourceUser   = $row.SourceUser
-        TargetDomain = $row.TargetDomain
-        TargetGroup  = $row.TargetGroup
-    }
-}
-
-# Call the Add-ADUserToGroup function with the object array
-$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -WhatIf:$WhatIf -Verbose
-
-# Stop transcript
-Stop-Transcript
+# FUNCTIONS
 
 function Add-ADUserToGroup {
     [CmdletBinding(SupportsShouldProcess = $true)]
@@ -77,9 +54,9 @@ function Add-ADUserToGroup {
         [int]$TimeLimitInSeconds,
 
         [Parameter(Mandatory = $true)]
-        [string]$LogFilePath,
+        [string]$LogFilePath
 
-        [switch]$WhatIf
+       
     )
 
     <#
@@ -113,6 +90,7 @@ function Add-ADUserToGroup {
 
     begin {
         $logEntries = @()
+        $SANHQAdminCreds = Get-Credential
     }
 
     process {
@@ -126,27 +104,29 @@ function Add-ADUserToGroup {
             if ($PSCmdlet.ShouldProcess("$SourceDomainUser to $TargetDomainGroup")) {
                 try {
                     # Add user to target domain group
-                    Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop -WhatIf:$WhatIf
+                    $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $SANHQAdminCreds 
+                    Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop 
+                    #Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop 
                     Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
 
                     # Wait for the specified time limit
-                    Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
-                    Start-Sleep -Seconds $TimeLimitInSeconds
+                    #Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
+                    #Start-Sleep -Seconds $TimeLimitInSeconds
 
                     # Confirm if the user is in the group
-                    Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
-                    $isMember = Get-ADGroupMember -Identity $TargetDomainGroup -Server $entry.TargetDomain | Where-Object { $_.SamAccountName -eq $entry.SourceUser }
+                    #Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
+                    #$isMember = Get-ADGroupMember -Identity $TargetDomainGroup -Server $entry.TargetDomain | Where-Object { $_.SamAccountName -eq $entry.SourceUser }
 
-                    if ($isMember) {
-                        $status = "Success"
-                        $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
-                        Write-Verbose $message
-                    }
-                    else {
-                        $status = "Failure"
-                        $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
-                        Write-Verbose $message
-                    }
+                    #if ($isMember) {
+                    #    $status = "Success"
+                    #    $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
+                   #     Write-Verbose $message
+                    #}
+                    #else {
+                    #    $status = "Failure"
+                    #    $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
+                    #    Write-Verbose $message
+                    #}
                 }
                 catch {
                     $status = "Error"
@@ -179,3 +159,31 @@ function Add-ADUserToGroup {
 
 # Example usage:
 # "source.com", "source2.com" | Add-ADUserToGroup -SourceUser "user1", "user2" -TargetDomain "target.com", "target2.com" -TargetGroup "TargetGroup", "TargetGroup2" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
+
+# Generate filenames for the log and transcript files
+$timestamp = (Get-Date).ToString("yyyyMMdd")
+$logFilePath = Join-Path -Path $OutputFolderPath -ChildPath "ADUserToGroupLog_$timestamp.csv"
+$transcriptFilePath = Join-Path -Path $OutputFolderPath -ChildPath "Transcript_$timestamp.txt"
+
+# Start transcript
+Start-Transcript -Path $transcriptFilePath
+
+# Import the CSV file
+$data = Import-Csv -Path $InputCsvPath
+
+# Build an object array from the CSV data
+$userGroupData = @()
+foreach ($row in $data) {
+    $userGroupData += [PSCustomObject]@{
+        SourceDomain = $row.SourceDomain
+        SourceUser   = $row.SourceUser
+        TargetDomain = $row.TargetDomain
+        TargetGroup  = $row.TargetGroup
+    }
+}
+
+# Call the Add-ADUserToGroup function with the object array
+$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath  -Verbose
+
+# Stop transcript
+Stop-Transcript
