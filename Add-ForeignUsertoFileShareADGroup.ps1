@@ -37,9 +37,10 @@ param (
     [string]$OutputFolderPath,
 
     [Parameter(Mandatory = $false)]
-    [int]$TimeLimitInSeconds = 900
+    [int]$TimeLimitInSeconds = 900,
 
-
+    [Parameter(Mandatory = $false)]
+    [switch]$Test
 )
 
 # FUNCTIONS
@@ -54,9 +55,10 @@ function Add-ADUserToGroup {
         [int]$TimeLimitInSeconds,
 
         [Parameter(Mandatory = $true)]
-        [string]$LogFilePath
+        [string]$LogFilePath,
 
-
+        [Parameter(Mandatory = $false)]
+        [switch]$Test
     )
 
     <#
@@ -103,30 +105,15 @@ function Add-ADUserToGroup {
 
             if ($PSCmdlet.ShouldProcess("$SourceDomainUser to $TargetDomainGroup")) {
                 try {
-                    # Add user to target domain group
-                    $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $HQAdminCreds
-                    Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
-                    #Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop
-                    Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
-
-                    # Wait for the specified time limit
-                    #Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
-                    #Start-Sleep -Seconds $TimeLimitInSeconds
-
-                    # Confirm if the user is in the group
-                    #Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
-                    #$isMember = Get-ADGroupMember -Identity $TargetDomainGroup -Server $entry.TargetDomain | Where-Object { $_.SamAccountName -eq $entry.SourceUser }
-
-                    #if ($isMember) {
-                    #    $status = "Success"
-                    #    $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
-                    #     Write-Verbose $message
-                    #}
-                    #else {
-                    #    $status = "Failure"
-                    #    $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
-                    #    Write-Verbose $message
-                    #}
+                    if ($Test) {
+                        Write-Verbose "Test mode: User $SourceDomainUser would be added to $TargetDomainGroup"
+                    }
+                    else {
+                        # Add user to target domain group
+                        $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $HQAdminCreds
+                        Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
+                        Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
+                    }
                 }
                 catch {
                     $status = "Error"
@@ -183,7 +170,7 @@ foreach ($row in $data) {
 }
 
 # Call the Add-ADUserToGroup function with the object array
-$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath  -Verbose
+$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Test:$Test -Verbose
 
 # Stop transcript
 Stop-Transcript
