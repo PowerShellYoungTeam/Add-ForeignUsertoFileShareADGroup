@@ -12,21 +12,20 @@ The file path to the input CSV file containing user and group information.
 .PARAMETER OutputFolderPath
 The folder path where the log and transcript files will be saved.
 
-.PARAMETER TimeLimitInSeconds
-The time limit to wait before checking if the users are members of the groups. Default is 900 seconds (15 minutes).
 
-.PARAMETER WhatIf
+.PARAMETER Test
 Switch to simulate the operation without making any changes.
 
+.PARAMETER ForeignAdminCreds
+Credentials for the foreign domain admin.
+
 .EXAMPLE
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -WhatIf
+.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -Test
 
 .NOTES
 Author: Steven Wight
 Date: 23/01/2025
 
-#cd \\ukgcbpro.uk.gcb.corp\gcbdfs\Data\EUTApplicationSource\_Powershell\AD
-#Add-ForeignUsertoFileShareADGroupmk2.ps1 -InputCsvPath c:\temp\Powershell\BarryGroups.csv  -OutputFolderPath c:\temp\Powershell\
 #>
 
 param (
@@ -37,9 +36,10 @@ param (
     [string]$OutputFolderPath,
 
     [Parameter(Mandatory = $false)]
-    [int]$TimeLimitInSeconds = 900
+    [switch]$Test,
 
-
+    [Parameter(Mandatory = $false)]
+    [PSCredential]$ForeignAdminCreds
 )
 
 # FUNCTIONS
@@ -50,13 +50,15 @@ function Add-ADUserToGroup {
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [PSCustomObject[]]$UserGroupData,
 
-        [Parameter(Mandatory = $true)]
-        [int]$TimeLimitInSeconds,
 
         [Parameter(Mandatory = $true)]
-        [string]$LogFilePath
+        [string]$LogFilePath,
 
+        [Parameter(Mandatory = $false)]
+        [switch]$Test,
 
+        [Parameter(Mandatory = $false)]
+        [PSCredential]$ForeignAdminCreds
     )
 
     <#
@@ -71,17 +73,18 @@ function Add-ADUserToGroup {
     .PARAMETER UserGroupData
     The object array containing user and group information.
 
-    .PARAMETER TimeLimitInSeconds
-    The time limit to wait before checking if the users are members of the groups.
 
     .PARAMETER LogFilePath
     The file path where the log will be saved.
 
-    .PARAMETER WhatIf
+    .PARAMETER Test
     Switch to simulate the operation without making any changes.
 
+    .PARAMETER ForeignAdminCreds
+    Credentials for the foreign domain admin.
+
     .EXAMPLE
-    $userGroupData | Add-ADUserToGroup -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -WhatIf -Verbose
+    $userGroupData | Add-ADUserToGroup -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
 
     .NOTES
     Author: Your Name
@@ -90,7 +93,9 @@ function Add-ADUserToGroup {
 
     begin {
         $logEntries = @()
-        $HQAdminCreds = Get-Credential
+        if (-not $ForeignAdminCreds) {
+            $ForeignAdminCreds = Get-Credential -Message "Enter admin creds for foreign domain"
+        }
     }
 
     process {
@@ -103,30 +108,17 @@ function Add-ADUserToGroup {
 
             if ($PSCmdlet.ShouldProcess("$SourceDomainUser to $TargetDomainGroup")) {
                 try {
-                    # Add user to target domain group
-                    $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $HQAdminCreds
-                    Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
-                    #Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop
-                    Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
-
-                    # Wait for the specified time limit
-                    #Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
-                    #Start-Sleep -Seconds $TimeLimitInSeconds
-
-                    # Confirm if the user is in the group
-                    #Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
-                    #$isMember = Get-ADGroupMember -Identity $TargetDomainGroup -Server $entry.TargetDomain | Where-Object { $_.SamAccountName -eq $entry.SourceUser }
-
-                    #if ($isMember) {
-                    #    $status = "Success"
-                    #    $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
-                    #     Write-Verbose $message
-                    #}
-                    #else {
-                    #    $status = "Failure"
-                    #    $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
-                    #    Write-Verbose $message
-                    #}
+                    if ($Test) {
+                        Write-Verbose "Test mode: User $SourceDomainUser would be added to $TargetDomainGroup"
+                    }
+                    else {
+                        # Add user to target domain group
+                        $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $ForeignAdminCreds
+                        Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
+                        Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
+                    }
+                    $status = "Success"
+                    $message = "$($logEntry.UserName) successfully added to $($logEntry.GroupName)"
                 }
                 catch {
                     $status = "Error"
@@ -151,6 +143,7 @@ function Add-ADUserToGroup {
     }
 
     end {
+
         # Log the results to CSV
         Write-Verbose "Logging results to $LogFilePath"
         $logEntries | Export-Csv -Path $LogFilePath -Append -NoTypeInformation
@@ -158,7 +151,7 @@ function Add-ADUserToGroup {
 }
 
 # Example usage:
-# "source.com", "source2.com" | Add-ADUserToGroup -SourceUser "user1", "user2" -TargetDomain "target.com", "target2.com" -TargetGroup "TargetGroup", "TargetGroup2" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
+# "source.com", "source2.com" | Add-ADUserToGroup -SourceUser "user1", "user2" -TargetDomain "target.com", "target2.com" -TargetGroup "TargetGroup", "TargetGroup2"  -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
 
 # Generate filenames for the log and transcript files
 $timestamp = (Get-Date).ToString("yyyyMMdd")
@@ -183,7 +176,7 @@ foreach ($row in $data) {
 }
 
 # Call the Add-ADUserToGroup function with the object array
-$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath  -Verbose
+$userGroupData | Add-ADUserToGroup  -LogFilePath $logFilePath -Test:$Test -ForeignAdminCreds $ForeignAdminCreds -Verbose
 
 # Stop transcript
 Stop-Transcript
