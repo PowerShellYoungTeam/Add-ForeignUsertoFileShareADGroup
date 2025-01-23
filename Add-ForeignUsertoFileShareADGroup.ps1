@@ -26,7 +26,7 @@ Author: Steven Wight
 Date: 23/01/2025
 
 #cd \\ukgcbpro.uk.gcb.corp\gcbdfs\Data\EUTApplicationSource\_Powershell\AD
-#Add-ForeignUsertoFileShareADGroupmk2.ps1 -InputCsvPath c:\temp\Powershell\BarryGroups.csv  -OutputFolderPath c:\temp\Powershell\ 
+#Add-ForeignUsertoFileShareADGroupmk2.ps1 -InputCsvPath c:\temp\Powershell\BarryGroups.csv  -OutputFolderPath c:\temp\Powershell\
 #>
 
 param (
@@ -39,7 +39,7 @@ param (
     [Parameter(Mandatory = $false)]
     [int]$TimeLimitInSeconds = 900
 
-    
+
 )
 
 # FUNCTIONS
@@ -56,7 +56,7 @@ function Add-ADUserToGroup {
         [Parameter(Mandatory = $true)]
         [string]$LogFilePath
 
-       
+
     )
 
     <#
@@ -90,7 +90,7 @@ function Add-ADUserToGroup {
 
     begin {
         $logEntries = @()
-        $SANHQAdminCreds = Get-Credential
+        $HQAdminCreds = Get-Credential
     }
 
     process {
@@ -104,9 +104,9 @@ function Add-ADUserToGroup {
             if ($PSCmdlet.ShouldProcess("$SourceDomainUser to $TargetDomainGroup")) {
                 try {
                     # Add user to target domain group
-                    $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $SANHQAdminCreds 
-                    Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop 
-                    #Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop 
+                    $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $HQAdminCreds
+                    Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
+                    #Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -Server $entry.TargetDomain -ErrorAction Stop
                     Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
 
                     # Wait for the specified time limit
@@ -120,7 +120,7 @@ function Add-ADUserToGroup {
                     #if ($isMember) {
                     #    $status = "Success"
                     #    $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
-                   #     Write-Verbose $message
+                    #     Write-Verbose $message
                     #}
                     #else {
                     #    $status = "Failure"
