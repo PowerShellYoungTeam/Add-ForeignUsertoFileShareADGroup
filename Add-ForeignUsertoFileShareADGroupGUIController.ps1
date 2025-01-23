@@ -64,7 +64,7 @@ $outputFolderButton.Add_Click({
 $form.Controls.Add($outputFolderButton)
 
 $testRadioButton = New-Object System.Windows.Forms.RadioButton
-$testRadioButton.Text = "Test"
+$testRadioButton.Text = "Test - check this if you want to run without making changes (-whatif mode)"
 $testRadioButton.Location = New-Object System.Drawing.Point(10, 130)
 $form.Controls.Add($testRadioButton)
 
@@ -84,11 +84,18 @@ $runButton.Add_Click({
         # Validate CSV
         if (-not (Test-Path $inputCSVTextBox.Text)) {
             [System.Windows.Forms.MessageBox]::Show("Invalid CSV Path")
+            $statusLabel.Text = "Status: ERROR"
             return
         }
-        # Run the script
-        .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -Credential $foreignAdminCreds -TestMode $testRadioButton.Checked
-        $statusLabel.Text = "Status: Complete"
+        try {
+            # Run the script
+            .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -TestMode $testRadioButton.Checked
+            $statusLabel.Text = "Status: Complete"
+        }
+        catch {
+            [System.Windows.Forms.MessageBox]::Show("An error occurred while running the script: $_")
+            $statusLabel.Text = "Status: ERROR"
+        }
     })
 $form.Controls.Add($runButton)
 
