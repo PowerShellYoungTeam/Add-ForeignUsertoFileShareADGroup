@@ -15,11 +15,14 @@ The folder path where the log and transcript files will be saved.
 .PARAMETER TimeLimitInSeconds
 The time limit to wait before checking if the users are members of the groups. Default is 900 seconds (15 minutes).
 
-.PARAMETER WhatIf
+.PARAMETER Test
 Switch to simulate the operation without making any changes.
 
+.PARAMETER ForeignAdminCreds
+Credentials for the foreign domain admin.
+
 .EXAMPLE
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -WhatIf
+.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output" -TimeLimitInSeconds 600 -Test
 
 .NOTES
 Author: Steven Wight
@@ -43,7 +46,7 @@ param (
     [switch]$Test,
 
     [Parameter(Mandatory = $false)]
-    [PSCredential]$HQAdminCreds
+    [PSCredential]$ForeignAdminCreds
 )
 
 # FUNCTIONS
@@ -64,7 +67,7 @@ function Add-ADUserToGroup {
         [switch]$Test,
 
         [Parameter(Mandatory = $false)]
-        [PSCredential]$HQAdminCreds
+        [PSCredential]$ForeignAdminCreds
     )
 
     <#
@@ -85,11 +88,14 @@ function Add-ADUserToGroup {
     .PARAMETER LogFilePath
     The file path where the log will be saved.
 
-    .PARAMETER WhatIf
+    .PARAMETER Test
     Switch to simulate the operation without making any changes.
 
+    .PARAMETER ForeignAdminCreds
+    Credentials for the foreign domain admin.
+
     .EXAMPLE
-    $userGroupData | Add-ADUserToGroup -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -WhatIf -Verbose
+    $userGroupData | Add-ADUserToGroup -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
 
     .NOTES
     Author: Your Name
@@ -98,8 +104,8 @@ function Add-ADUserToGroup {
 
     begin {
         $logEntries = @()
-        if (-not $HQAdminCreds) {
-            $HQAdminCreds = Get-Credential -Message "Enter admin creds for foreign domain"
+        if (-not $ForeignAdminCreds) {
+            $ForeignAdminCreds = Get-Credential -Message "Enter admin creds for foreign domain"
         }
     }
 
@@ -118,10 +124,12 @@ function Add-ADUserToGroup {
                     }
                     else {
                         # Add user to target domain group
-                        $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $HQAdminCreds
+                        $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $ForeignAdminCreds
                         Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
                         Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
                     }
+                    $status = "Pending"
+                    $message = "Waiting to confirm membership"
                 }
                 catch {
                     $status = "Error"
@@ -146,6 +154,31 @@ function Add-ADUserToGroup {
     }
 
     end {
+        # Wait for the specified time limit
+        Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
+        Start-Sleep -Seconds $TimeLimitInSeconds
+
+        # Check membership for non-error entries
+        foreach ($logEntry in $logEntries) {
+            if ($logEntry.Status -eq "Pending") {
+                try {
+                    $isMember = Get-ADGroupMember -Identity $logEntry.GroupName -Server $logEntry.GroupDomain | Where-Object { $_.SamAccountName -eq $logEntry.UserName }
+                    if ($isMember) {
+                        $logEntry.Status = "Success"
+                        $logEntry.Message = "$($logEntry.UserName) successfully added to $($logEntry.GroupName)"
+                    }
+                    else {
+                        $logEntry.Status = "Failure"
+                        $logEntry.Message = "$($logEntry.UserName) not found in $($logEntry.GroupName) after $TimeLimitInSeconds seconds"
+                    }
+                }
+                catch {
+                    $logEntry.Status = "Error"
+                    $logEntry.Message = $_.Exception.Message
+                }
+            }
+        }
+
         # Log the results to CSV
         Write-Verbose "Logging results to $LogFilePath"
         $logEntries | Export-Csv -Path $LogFilePath -Append -NoTypeInformation
@@ -178,7 +211,7 @@ foreach ($row in $data) {
 }
 
 # Call the Add-ADUserToGroup function with the object array
-$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Test:$Test -HQAdminCreds $HQAdminCreds -Verbose
+$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Test:$Test -ForeignAdminCreds $ForeignAdminCreds -Verbose
 
 # Stop transcript
 Stop-Transcript
