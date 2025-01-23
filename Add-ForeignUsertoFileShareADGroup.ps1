@@ -40,7 +40,10 @@ param (
     [int]$TimeLimitInSeconds = 900,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Test
+    [switch]$Test,
+
+    [Parameter(Mandatory = $false)]
+    [PSCredential]$HQAdminCreds
 )
 
 # FUNCTIONS
@@ -58,7 +61,10 @@ function Add-ADUserToGroup {
         [string]$LogFilePath,
 
         [Parameter(Mandatory = $false)]
-        [switch]$Test
+        [switch]$Test,
+
+        [Parameter(Mandatory = $false)]
+        [PSCredential]$HQAdminCreds
     )
 
     <#
@@ -92,7 +98,9 @@ function Add-ADUserToGroup {
 
     begin {
         $logEntries = @()
-        $HQAdminCreds = Get-Credential
+        if (-not $HQAdminCreds) {
+            $HQAdminCreds = Get-Credential -Message "Enter admin creds for foreign domain"
+        }
     }
 
     process {
@@ -170,7 +178,7 @@ foreach ($row in $data) {
 }
 
 # Call the Add-ADUserToGroup function with the object array
-$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Test:$Test -Verbose
+$userGroupData | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Test:$Test -HQAdminCreds $HQAdminCreds -Verbose
 
 # Stop transcript
 Stop-Transcript
