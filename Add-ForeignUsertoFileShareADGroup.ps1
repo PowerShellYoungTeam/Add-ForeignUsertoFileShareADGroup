@@ -1,3 +1,37 @@
+param (
+    [Parameter(Mandatory = $true)]
+    [string]$InputCsvPath,
+
+    [Parameter(Mandatory = $true)]
+    [string]$OutputFolderPath,
+
+    [Parameter(Mandatory = $false)]
+    [int]$TimeLimitInSeconds = 900
+)
+
+# Generate filenames for the log and transcript files
+$timestamp = (Get-Date).ToString("yyyyMMdd")
+$logFilePath = Join-Path -Path $OutputFolderPath -ChildPath "ADUserToGroupLog_$timestamp.csv"
+$transcriptFilePath = Join-Path -Path $OutputFolderPath -ChildPath "Transcript_$timestamp.txt"
+
+# Start transcript
+Start-Transcript -Path $transcriptFilePath
+
+# Import the CSV file
+$data = Import-Csv -Path $InputCsvPath
+
+# Extract the columns from the CSV
+$sourceDomains = $data.SourceDomain
+$sourceUsers = $data.SourceUser
+$targetDomains = $data.TargetDomain
+$targetGroups = $data.TargetGroup
+
+# Call the Add-ADUserToGroup function with the extracted data
+$sourceDomains, $sourceUsers, $targetDomains, $targetGroups | Add-ADUserToGroup -TimeLimitInSeconds $TimeLimitInSeconds -LogFilePath $logFilePath -Verbose
+
+# Stop transcript
+Stop-Transcript
+
 function Add-ADUserToGroup {
     [CmdletBinding()]
     param (
