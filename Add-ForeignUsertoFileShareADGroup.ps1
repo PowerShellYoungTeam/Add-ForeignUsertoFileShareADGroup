@@ -1,17 +1,17 @@
 function Add-ADUserToGroup {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [string]$SourceDomain,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string[]]$SourceDomain,
 
-        [Parameter(Mandatory = $true)]
-        [string]$SourceUser,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string[]]$SourceUser,
 
-        [Parameter(Mandatory = $true)]
-        [string]$TargetDomain,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string[]]$TargetDomain,
 
-        [Parameter(Mandatory = $true)]
-        [string]$TargetGroup,
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [string[]]$TargetGroup,
 
         [Parameter(Mandatory = $true)]
         [int]$TimeLimitInSeconds,
@@ -22,89 +22,106 @@ function Add-ADUserToGroup {
 
     <#
     .SYNOPSIS
-    Adds a user from a source domain to a group in a target domain and logs the result.
+    Adds users from source domains to groups in target domains and logs the result.
 
     .DESCRIPTION
-    This function adds a specified user from a source domain to a specified group in a target domain.
-    It waits for a specified time limit and then checks if the user is a member of the group.
+    This function adds specified users from source domains to specified groups in target domains.
+    It waits for a specified time limit and then checks if the users are members of the groups.
     The result is logged to a CSV file.
 
     .PARAMETER SourceDomain
-    The domain of the source user.
+    The domains of the source users.
 
     .PARAMETER SourceUser
-    The username of the source user.
+    The usernames of the source users.
 
     .PARAMETER TargetDomain
-    The domain of the target group.
+    The domains of the target groups.
 
     .PARAMETER TargetGroup
-    The name of the target group.
+    The names of the target groups.
 
     .PARAMETER TimeLimitInSeconds
-    The time limit to wait before checking if the user is a member of the group.
+    The time limit to wait before checking if the users are members of the groups.
 
     .PARAMETER LogFilePath
     The file path where the log will be saved.
 
     .EXAMPLE
-    Add-ADUserToGroup -SourceDomain "source.com" -SourceUser "user1" -TargetDomain "target.com" -TargetGroup "TargetGroup" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
+    "source.com", "source2.com" | Add-ADUserToGroup -SourceUser "user1", "user2" -TargetDomain "target.com", "target2.com" -TargetGroup "TargetGroup", "TargetGroup2" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
 
     .NOTES
     Author: Your Name
     Date: Today's Date
     #>
 
-    # Construct the full user and group names
-    $SourceDomainUser = "$SourceDomain\$SourceUser"
-    $TargetDomainGroup = "$TargetDomain\$TargetGroup"
+    begin {
+        $logEntries = @()
+    }
 
-    Write-Verbose "Adding $SourceDomainUser to $TargetDomainGroup"
+    process {
+        for ($i = 0; $i -lt $SourceDomain.Length; $i++) {
+            $currentSourceDomain = $SourceDomain[$i]
+            $currentSourceUser = $SourceUser[$i]
+            $currentTargetDomain = $TargetDomain[$i]
+            $currentTargetGroup = $TargetGroup[$i]
+            $SourceDomainUser = "$currentSourceDomain\$currentSourceUser"
+            $TargetDomainGroup = "$currentTargetDomain\$currentTargetGroup"
 
-    try {
-        # Add user to target domain group
-        Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -ErrorAction Stop
-        Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
+            Write-Verbose "Adding $SourceDomainUser to $TargetDomainGroup"
+            Write-Progress -Activity "Adding Users to Groups" -Status "Processing $currentSourceUser" -PercentComplete (($i / $SourceDomain.Length) * 100)
 
-        # Wait for the specified time limit
-        Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
-        Start-Sleep -Seconds $TimeLimitInSeconds
+            try {
+                # Add user to target domain group
+                Add-ADGroupMember -Identity $TargetDomainGroup -Members $SourceDomainUser -ErrorAction Stop
+                Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
 
-        # Confirm if the user is in the group
-        Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
-        $isMember = Get-ADGroupMember -Identity $TargetDomainGroup | Where-Object { $_.SamAccountName -eq $SourceUser }
+                # Wait for the specified time limit
+                Write-Verbose "Waiting for $TimeLimitInSeconds seconds"
+                Start-Sleep -Seconds $TimeLimitInSeconds
 
-        if ($isMember) {
-            $status = "Success"
-            $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
-            Write-Verbose $message
+                # Confirm if the user is in the group
+                Write-Verbose "Checking if $SourceDomainUser is a member of $TargetDomainGroup"
+                $isMember = Get-ADGroupMember -Identity $TargetDomainGroup | Where-Object { $_.SamAccountName -eq $currentSourceUser }
+
+                if ($isMember) {
+                    $status = "Success"
+                    $message = "$SourceDomainUser successfully added to $TargetDomainGroup"
+                    Write-Verbose $message
+                }
+                else {
+                    $status = "Failure"
+                    $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
+                    Write-Verbose $message
+                }
+            }
+            catch {
+                $status = "Error"
+                $message = $_.Exception.Message
+                Write-Verbose "Error: $message"
+            }
+
+            # Prepare the log entry
+            $logEntry = [PSCustomObject]@{
+                Timestamp   = Get-Date
+                UserName    = $currentSourceUser
+                UserDomain  = $currentSourceDomain
+                GroupName   = $currentTargetGroup
+                GroupDomain = $currentTargetDomain
+                Status      = $status
+                Message     = $message
+            }
+
+            $logEntries += $logEntry
         }
-        else {
-            $status = "Failure"
-            $message = "$SourceDomainUser not found in $TargetDomainGroup after $TimeLimitInSeconds seconds"
-            Write-Verbose $message
-        }
-    }
-    catch {
-        $status = "Error"
-        $message = $_.Exception.Message
-        Write-Verbose "Error: $message"
     }
 
-    # Log the result to CSV
-    $logEntry = [PSCustomObject]@{
-        Timestamp   = Get-Date
-        UserName    = $SourceUser
-        UserDomain  = $SourceDomain
-        GroupName   = $TargetGroup
-        GroupDomain = $TargetDomain
-        Status      = $status
-        Message     = $message
+    end {
+        # Log the results to CSV
+        Write-Verbose "Logging results to $LogFilePath"
+        $logEntries | Export-Csv -Path $LogFilePath -Append -NoTypeInformation
     }
-
-    Write-Verbose "Logging result to $LogFilePath"
-    $logEntry | Export-Csv -Path $LogFilePath -Append -NoTypeInformation
 }
 
 # Example usage:
-# Add-ADUserToGroup -SourceDomain "source.com" -SourceUser "user1" -TargetDomain "target.com" -TargetGroup "TargetGroup" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
+# "source.com", "source2.com" | Add-ADUserToGroup -SourceUser "user1", "user2" -TargetDomain "target.com", "target2.com" -TargetGroup "TargetGroup", "TargetGroup2" -TimeLimitInSeconds 60 -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Verbose
