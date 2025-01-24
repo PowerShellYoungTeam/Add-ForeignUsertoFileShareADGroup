@@ -63,10 +63,10 @@ $outputFolderButton.Add_Click({
     })
 $form.Controls.Add($outputFolderButton)
 
-$testRadioButton = New-Object System.Windows.Forms.RadioButton
-$testRadioButton.Text = "Test - check this if you want to run without making changes (-whatif mode)"
-$testRadioButton.Location = New-Object System.Drawing.Point(10, 130)
-$form.Controls.Add($testRadioButton)
+$testCheckBox = New-Object System.Windows.Forms.CheckBox
+$testCheckBox.Text = "Test - check this if you want to run without making changes (-whatif mode)"
+$testCheckBox.Location = New-Object System.Drawing.Point(10, 130)
+$form.Controls.Add($testCheckBox)
 
 $credentialButton = New-Object System.Windows.Forms.Button
 $credentialButton.Text = "Enter Credentials"
@@ -91,7 +91,7 @@ $runButton.Add_Click({
             # Run the script
             # HACK *** encase working dir is not the same place as where scripts are stored
             # set-location '\\server\folders\'
-            .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -Test $testRadioButton.Checked
+            .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -Test $testCheckBox.Checked
             $statusLabel.Text = "Status: Complete"
         }
         catch {
