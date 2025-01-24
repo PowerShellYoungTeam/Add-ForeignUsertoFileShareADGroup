@@ -89,7 +89,9 @@ $runButton.Add_Click({
         }
         try {
             # Run the script
-            .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -TestMode $testRadioButton.Checked
+            # HACK *** encase working dir is not the same place as where scripts are stored
+            # set-location '\\server\folders\'
+            .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -Test $testRadioButton.Checked
             $statusLabel.Text = "Status: Complete"
         }
         catch {

@@ -13,13 +13,13 @@ The file path to the input CSV file containing user and group information.
 The folder path where the log and transcript files will be saved.
 
 .PARAMETER Test
-Switch to simulate the operation without making any changes.
+Boolean to simulate the operation without making any changes.
 
 .PARAMETER ForeignAdminCreds
 Credentials for the foreign domain admin.
 
 .EXAMPLE
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output"  -Test
+.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output"  -Test $true
 
 .NOTES
 Author: Steven Wight with GitHub Copilot
@@ -35,7 +35,7 @@ param (
     [string]$OutputFolderPath,
 
     [Parameter(Mandatory = $false)]
-    [switch]$Test,
+    [bool]$Test,
 
     [Parameter(Mandatory = $false)]
     [PSCredential]$ForeignAdminCreds
@@ -54,7 +54,7 @@ function Add-ADUserToGroup {
         [string]$LogFilePath,
 
         [Parameter(Mandatory = $false)]
-        [switch]$Test,
+        [Bool]$Test,
 
         [Parameter(Mandatory = $false)]
         [PSCredential]$ForeignAdminCreds
@@ -76,13 +76,13 @@ function Add-ADUserToGroup {
     The file path where the log will be saved.
 
     .PARAMETER Test
-    Switch to simulate the operation without making any changes.
+    Boolean to simulate the operation without making any changes.
 
     .PARAMETER ForeignAdminCreds
     Credentials for the foreign domain admin.
 
     .EXAMPLE
-    $userGroupData | Add-ADUserToGroup -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
+    $userGroupData | Add-ADUserToGroup -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test $test -Verbose
 
     .NOTES
     Author: Steven Wight with GitHub Copilot
@@ -108,11 +108,13 @@ function Add-ADUserToGroup {
                 try {
                     if ($Test) {
                         Write-Verbose "Test mode: User $SourceDomainUser would be added to $TargetDomainGroup"
+                        $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $ForeignAdminCreds
+                        Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop -verbose -WhatIf
                     }
                     else {
                         # Add user to target domain group
                         $SourceUserObj = get-aduser $entry.SourceUser -server $entry.SourceDomain -Credential $ForeignAdminCreds
-                        Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop
+                        Add-ADGroupMember -Identity $entry.TargetGroup -Members $SourceUserObj -Server $entry.TargetDomain -ErrorAction Stop -verbose
                         Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
                     }
                     $status = "Success"
