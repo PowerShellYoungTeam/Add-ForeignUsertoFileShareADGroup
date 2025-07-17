@@ -13,13 +13,13 @@ The file path to the input CSV file containing user and group information.
 The folder path where the log and transcript files will be saved.
 
 .PARAMETER Test
-Boolean to simulate the operation without making any changes.
+boolean to simulate the operation without making any changes.
 
 .PARAMETER ForeignAdminCreds
 Credentials for the foreign domain admin.
 
 .EXAMPLE
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output"  -Test $true
+.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Input\users.csv" -OutputFolderPath "C:\Output"  -Test
 
 .NOTES
 Author: Steven Wight with GitHub Copilot
@@ -54,7 +54,7 @@ function Add-ADUserToGroup {
         [string]$LogFilePath,
 
         [Parameter(Mandatory = $false)]
-        [Bool]$Test,
+        [bool]$Test,
 
         [Parameter(Mandatory = $false)]
         [PSCredential]$ForeignAdminCreds
@@ -76,13 +76,13 @@ function Add-ADUserToGroup {
     The file path where the log will be saved.
 
     .PARAMETER Test
-    Boolean to simulate the operation without making any changes.
+    bool to simulate the operation without making any changes.
 
     .PARAMETER ForeignAdminCreds
     Credentials for the foreign domain admin.
 
     .EXAMPLE
-    $userGroupData | Add-ADUserToGroup -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test $test -Verbose
+    $userGroupData | Add-ADUserToGroup -LogFilePath "C:\Logs\ADUserToGroupLog.csv" -Test -Verbose
 
     .NOTES
     Author: Steven Wight with GitHub Copilot
@@ -118,7 +118,7 @@ function Add-ADUserToGroup {
                         Write-Verbose "User $SourceDomainUser added to $TargetDomainGroup"
                     }
                     $status = "Success"
-                    $message = "$($logEntry.UserName) successfully added to $($logEntry.GroupName)"
+                    $message = "$($entry.UserName) successfully added to $($entry.TargetGroup)"
                 }
                 catch {
                     $status = "Error"
