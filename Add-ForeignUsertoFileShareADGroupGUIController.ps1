@@ -1,12 +1,20 @@
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
-$defaultCSVPath = "C:\temp\input.csv"
-$defaultOutputFolderPath = "C:\temp\"
+$defaultCSVPath = "C:\temp\Powershell\BarryGroups.csv"
+$defaultOutputFolderPath = "C:\temp\PowerShell"
+
+# Default email settings
+$defaultEmailFrom = "noreply@company.com"
+$defaultEmailTo = "admin@company.com"
+$defaultEmailSubject = "AD Group Script Completion"
+$defaultEmailBody = "The Add-ForeignUsertoFileShareADGroup script has completed successfully. Please see the attached output file for details."
+$defaultSMTPServer = "smtp.company.com"
+$defaultSMTPPort = "587"
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "Add-ForeignUsertoFileShareADGroup GUI Controller"
-$form.Size = New-Object System.Drawing.Size(600, 400)
+$form.Size = New-Object System.Drawing.Size(600, 600)
 
 $statusLabel = New-Object System.Windows.Forms.Label
 $statusLabel.Text = "Status: Not Started"
@@ -68,17 +76,93 @@ $testCheckBox.Text = "Test - check this if you want to run without making change
 $testCheckBox.Location = New-Object System.Drawing.Point(10, 130)
 $form.Controls.Add($testCheckBox)
 
+# Email Configuration Section
+$emailLabel = New-Object System.Windows.Forms.Label
+$emailLabel.Text = "Email Configuration"
+$emailLabel.Font = New-Object System.Drawing.Font("Arial", 10, [System.Drawing.FontStyle]::Bold)
+$emailLabel.Location = New-Object System.Drawing.Point(10, 160)
+$emailLabel.Size = New-Object System.Drawing.Size(200, 20)
+$form.Controls.Add($emailLabel)
+
+$emailFromLabel = New-Object System.Windows.Forms.Label
+$emailFromLabel.Text = "From:"
+$emailFromLabel.Location = New-Object System.Drawing.Point(10, 190)
+$emailFromLabel.Size = New-Object System.Drawing.Size(110, 20)
+$form.Controls.Add($emailFromLabel)
+
+$emailFromTextBox = New-Object System.Windows.Forms.TextBox
+$emailFromTextBox.Location = New-Object System.Drawing.Point(120, 190)
+$emailFromTextBox.Size = New-Object System.Drawing.Size(350, 20)
+$form.Controls.Add($emailFromTextBox)
+
+$emailToLabel = New-Object System.Windows.Forms.Label
+$emailToLabel.Text = "To:"
+$emailToLabel.Location = New-Object System.Drawing.Point(10, 220)
+$emailToLabel.Size = New-Object System.Drawing.Size(110, 20)
+$form.Controls.Add($emailToLabel)
+
+$emailToTextBox = New-Object System.Windows.Forms.TextBox
+$emailToTextBox.Location = New-Object System.Drawing.Point(120, 220)
+$emailToTextBox.Size = New-Object System.Drawing.Size(350, 20)
+$form.Controls.Add($emailToTextBox)
+
+$emailSubjectLabel = New-Object System.Windows.Forms.Label
+$emailSubjectLabel.Text = "Subject:"
+$emailSubjectLabel.Location = New-Object System.Drawing.Point(10, 250)
+$emailSubjectLabel.Size = New-Object System.Drawing.Size(110, 20)
+$form.Controls.Add($emailSubjectLabel)
+
+$emailSubjectTextBox = New-Object System.Windows.Forms.TextBox
+$emailSubjectTextBox.Location = New-Object System.Drawing.Point(120, 250)
+$emailSubjectTextBox.Size = New-Object System.Drawing.Size(350, 20)
+$form.Controls.Add($emailSubjectTextBox)
+
+$emailBodyLabel = New-Object System.Windows.Forms.Label
+$emailBodyLabel.Text = "Body:"
+$emailBodyLabel.Location = New-Object System.Drawing.Point(10, 280)
+$emailBodyLabel.Size = New-Object System.Drawing.Size(110, 20)
+$form.Controls.Add($emailBodyLabel)
+
+$emailBodyTextBox = New-Object System.Windows.Forms.TextBox
+$emailBodyTextBox.Location = New-Object System.Drawing.Point(120, 280)
+$emailBodyTextBox.Size = New-Object System.Drawing.Size(350, 60)
+$emailBodyTextBox.Multiline = $true
+$emailBodyTextBox.ScrollBars = [System.Windows.Forms.ScrollBars]::Vertical
+$form.Controls.Add($emailBodyTextBox)
+
+$smtpServerLabel = New-Object System.Windows.Forms.Label
+$smtpServerLabel.Text = "SMTP Server:"
+$smtpServerLabel.Location = New-Object System.Drawing.Point(10, 350)
+$smtpServerLabel.Size = New-Object System.Drawing.Size(110, 20)
+$form.Controls.Add($smtpServerLabel)
+
+$smtpServerTextBox = New-Object System.Windows.Forms.TextBox
+$smtpServerTextBox.Location = New-Object System.Drawing.Point(120, 350)
+$smtpServerTextBox.Size = New-Object System.Drawing.Size(200, 20)
+$form.Controls.Add($smtpServerTextBox)
+
+$smtpPortLabel = New-Object System.Windows.Forms.Label
+$smtpPortLabel.Text = "Port:"
+$smtpPortLabel.Location = New-Object System.Drawing.Point(330, 350)
+$smtpPortLabel.Size = New-Object System.Drawing.Size(40, 20)
+$form.Controls.Add($smtpPortLabel)
+
+$smtpPortTextBox = New-Object System.Windows.Forms.TextBox
+$smtpPortTextBox.Location = New-Object System.Drawing.Point(370, 350)
+$smtpPortTextBox.Size = New-Object System.Drawing.Size(100, 20)
+$form.Controls.Add($smtpPortTextBox)
+
 $credentialButton = New-Object System.Windows.Forms.Button
 $credentialButton.Text = "Enter Credentials"
-$credentialButton.Location = New-Object System.Drawing.Point(10, 170)
+$credentialButton.Location = New-Object System.Drawing.Point(10, 380)
 $credentialButton.Add_Click({
         $foreignAdminCreds = Get-Credential -Message "Enter Foreign Admin Credentials"
     })
-$form.Controls.Add($credentialButton)
+#$form.Controls.Add($credentialButton)
 
 $runButton = New-Object System.Windows.Forms.Button
 $runButton.Text = "Run"
-$runButton.Location = New-Object System.Drawing.Point(10, 210)
+$runButton.Location = New-Object System.Drawing.Point(10, 420)
 $runButton.Add_Click({
         $statusLabel.Text = "Status: Running"
         # Validate CSV
@@ -89,10 +173,44 @@ $runButton.Add_Click({
         }
         try {
             # Run the script
-            # HACK *** encase working dir is not the same place as where scripts are stored
-            # set-location '\\server\folders\'
+            set-location '\\ukgcbpro.uk.gcb.corp\gcbdfs\Data\EUTApplicationSource\_Powershell\AD\'
             .\add-foreignUsertoFileShareADGroup.ps1 -InputCSVPath $inputCSVTextBox.Text -OutputFolderPath $outputFolderTextBox.Text -ForeignAdminCreds $foreignAdminCreds -Test $testCheckBox.Checked
-            $statusLabel.Text = "Status: Complete"
+
+            # Send completion email if email fields are filled
+            if ($emailFromTextBox.Text -and $emailToTextBox.Text -and $smtpServerTextBox.Text) {
+                try {
+                    $attachmentPath = Join-Path $outputFolderTextBox.Text "*.csv"
+                    $attachments = Get-ChildItem $attachmentPath -ErrorAction SilentlyContinue
+
+                    $emailParams = @{
+                        From       = $emailFromTextBox.Text
+                        To         = $emailToTextBox.Text
+                        Subject    = $emailSubjectTextBox.Text
+                        Body       = $emailBodyTextBox.Text
+                        SmtpServer = $smtpServerTextBox.Text
+                    }
+
+                    if ($smtpPortTextBox.Text) {
+                        $emailParams.Port = [int]$smtpPortTextBox.Text
+                    }
+
+                    if ($attachments) {
+                        $emailParams.Attachments = $attachments[0].FullName
+                    }
+
+                    Send-MailMessage @emailParams
+                    $statusLabel.Text = "Status: Complete - Email sent"
+                }
+                catch {
+                    [System.Windows.Forms.MessageBox]::Show("Script completed but email failed: $_")
+                    $statusLabel.Text = "Status: Complete - Email failed"
+                }
+            }
+            else {
+                $statusLabel.Text = "Status: Complete"
+            }
+
+            $openOutputFolderButton.Enabled = $true
         }
         catch {
             [System.Windows.Forms.MessageBox]::Show("An error occurred while running the script: $_")
@@ -103,7 +221,7 @@ $form.Controls.Add($runButton)
 
 $openOutputFolderButton = New-Object System.Windows.Forms.Button
 $openOutputFolderButton.Text = "Open Output Folder"
-$openOutputFolderButton.Location = New-Object System.Drawing.Point(100, 210)
+$openOutputFolderButton.Location = New-Object System.Drawing.Point(100, 420)
 $openOutputFolderButton.Enabled = $false
 $openOutputFolderButton.Add_Click({
         Start-Process $outputFolderTextBox.Text
@@ -113,6 +231,12 @@ $form.Controls.Add($openOutputFolderButton)
 $form.Add_Shown({
         $inputCSVTextBox.Text = $defaultCSVPath
         $outputFolderTextBox.Text = $defaultOutputFolderPath
+        $emailFromTextBox.Text = $defaultEmailFrom
+        $emailToTextBox.Text = $defaultEmailTo
+        $emailSubjectTextBox.Text = $defaultEmailSubject
+        $emailBodyTextBox.Text = $defaultEmailBody
+        $smtpServerTextBox.Text = $defaultSMTPServer
+        $smtpPortTextBox.Text = $defaultSMTPPort
     })
 
 $form.ShowDialog()
