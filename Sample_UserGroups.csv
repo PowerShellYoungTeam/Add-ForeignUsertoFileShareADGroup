@@ -1,0 +1,7 @@
+SourceDomain,SourceUser,TargetDomain,TargetGroup
+contoso.com,jdoe,fabrikam.com,FileShare_Readers
+contoso.com,asmith,fabrikam.com,FileShare_Readers
+contoso.com,bjones,fabrikam.com,FileShare_Writers
+external.com,consultant1,fabrikam.com,Temp_Access
+external.com,contractor2,fabrikam.com,Temp_Access
+contoso.com,manager1,fabrikam.com,FileShare_Admins
