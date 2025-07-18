@@ -1,19 +1,26 @@
-# Enhanced AD Group Management Tool v2.0
+# Enhanced AD Group Management Tool v2.0 (PowerShell Module)
 
-A comprehensive PowerShell solution for adding users from foreign domains to Active Directory groups with advanced error handling, validation, and a modern GUI interface.
+A comprehensive PowerShell module for adding users from foreign domains to Active Directory groups with advanced error handling, validation, and a modern GUI interface.
 
 ## 🚀 New Features in v2.0
 
-### Core Script Enhancements
+### Module Architecture
+- **Professional PowerShell Module**: Complete modularization with proper manifest and module structure
+- **Organized Structure**: Functions separated into logical files for better maintainability
+- **Easy Installation**: Simple installation process with automatic dependency checking
+- **Cross-Platform Compatibility**: Enhanced compatibility with Windows Server 2012 R2+ and PowerShell 5.1+
+
+### Core Enhancements
 - **Comprehensive Validation**: Pre-flight checks for CSV schema, domain connectivity, and user/group existence
+- **Credential Validation**: Validate credentials against all domains before processing
 - **Retry Logic**: Configurable retry attempts with exponential backoff for transient failures
 - **Performance Monitoring**: Detailed timing and performance metrics
 - **Enhanced Logging**: Structured logging with operation IDs and comprehensive audit trails
-- **Parallel Processing**: Optional parallel execution for large datasets
+- **Parallel Processing**: Optional parallel execution for large datasets (planned)
 - **Security Improvements**: Better credential handling and validation
 
 ### GUI Controller Enhancements
-- **Modern Tabbed Interface**: Organized into Configuration, Advanced, Email, and Logs tabs
+- **Modern Tabbed Interface**: Organized into Configuration, Advanced, and Logs tabs
 - **Real-time Validation**: Live input validation with visual feedback
 - **Configuration Persistence**: Save and load user preferences
 - **Progress Monitoring**: Real-time progress bars and status updates
@@ -31,15 +38,37 @@ A comprehensive PowerShell solution for adding users from foreign domains to Act
 
 ## 🏗️ Installation
 
-1. **Download the files** to a local directory:
-   - `Add-ForeignUsertoFileShareADGroup.ps1` (Core script)
-   - `Add-ForeignUsertoFileShareADGroupGUIController.ps1` (GUI interface)
-   - `Sample_UserGroups.csv` (Example CSV format)
+### Method 1: PowerShell Module Installation (Recommended)
+
+1. **Download the module** to a local directory
+2. **Run the installation function**:
+   ```powershell
+   # Import the install function
+   . .\ADGroupTool\Install\Install-ADGroupTool.ps1
+
+   # Install for current user with desktop shortcut
+   Install-ADGroupTool -CreateDesktopShortcut
+
+   # Install for all users (requires admin privileges)
+   Install-ADGroupTool -Scope AllUsers -InstallRSAT -CreateDesktopShortcut
+   ```
+
+3. **Verify installation**:
+   ```powershell
+   Import-Module ADGroupTool
+   Get-Command -Module ADGroupTool
+   ```
+
+### Method 2: Manual Installation
+
+1. **Copy the ADGroupTool folder** to your PowerShell modules directory:
+   - Current User: `$HOME\Documents\WindowsPowerShell\Modules\`
+   - All Users: `$env:ProgramFiles\WindowsPowerShell\Modules\`
 
 2. **Install Prerequisites**:
    ```powershell
    # Install RSAT Tools (if not already installed)
-   Enable-WindowsOptionalFeature -Online -FeatureName RSATTools-AD-PowerShell
+   Add-WindowsCapability -Online -Name "Rsat.ActiveDirectory.DS-LDS.Tools~~~~0.0.1.0"
 
    # Or on Windows Server:
    Install-WindowsFeature RSAT-AD-PowerShell
@@ -49,6 +78,27 @@ A comprehensive PowerShell solution for adding users from foreign domains to Act
    ```powershell
    Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
    ```
+
+### Module Structure
+
+```
+ADGroupTool/
+├── ADGroupTool.psd1                    # Module manifest
+├── ADGroupTool.psm1                    # Main module file
+├── Functions/                          # Core functions
+│   ├── Add-ADUserToGroup.ps1          # Main processing function
+│   ├── Test-CSVSchema.ps1             # CSV validation
+│   ├── Test-Credential.ps1            # Credential validation
+│   ├── Test-DomainConnectivity.ps1    # Domain connectivity testing
+│   ├── Invoke-WithRetry.ps1           # Retry logic
+│   └── Invoke-ADGroupOperation.ps1    # Main wrapper function
+├── GUI/
+│   └── Start-ADGroupToolGUI.ps1       # GUI interface
+├── Install/
+│   └── Install-ADGroupTool.ps1        # Installation function
+└── Data/
+    └── Sample_UserGroups.csv           # Sample CSV file
+```
 
 ## 📊 CSV File Format
 
@@ -72,30 +122,53 @@ external.com,consultant1,fabrikam.com,Temp_Access
 ## 🖥️ Usage
 
 ### GUI Method (Recommended)
+
 1. **Launch the GUI**:
    ```powershell
-   .\Add-ForeignUsertoFileShareADGroupGUIController.ps1
+   Import-Module ADGroupTool
+   Start-ADGroupToolGUI
    ```
 
 2. **Configure Settings**:
-   - **Configuration Tab**: Set script path, CSV file, and output folder
-   - **Advanced Tab**: Configure retry logic and parallel processing
-   - **Email Tab**: Set up email notifications
+   - **Configuration Tab**: Set CSV file and output folder
+   - **Advanced Tab**: Configure retry logic and validation options
    - **Logs Tab**: Monitor real-time execution
 
 3. **Execute**:
-   - Click "Run Script" to start execution
+   - Click "Run Operation" to start execution
    - Monitor progress in the Logs tab
    - Review results in the output folder
 
 ### Command Line Method
+
 ```powershell
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath "C:\Path\To\Users.csv" -OutputFolderPath "C:\Output" -Test
+Import-Module ADGroupTool
+Invoke-ADGroupOperation -InputCsvPath "C:\Path\To\Users.csv" -OutputFolderPath "C:\Output" -Test
+```
+
+### Module Functions
+
+The module provides several functions that can be used independently:
+
+```powershell
+# Main operation function
+Invoke-ADGroupOperation -InputCsvPath "users.csv" -OutputFolderPath "output" -Test
+
+# Individual validation functions
+Test-CSVSchema -CsvPath "users.csv"
+Test-Credential -Credential $creds -Domain "contoso.com"
+Test-DomainConnectivity -Domains @("contoso.com", "fabrikam.com")
+
+# Core processing function
+$data | Add-ADUserToGroup -LogFilePath "log.csv" -Test
+
+# GUI function
+Start-ADGroupToolGUI
 ```
 
 ### Parameters
 
-#### Core Script Parameters
+#### Core Function Parameters
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `InputCsvPath` | String | Yes | Path to CSV file with user/group data |
@@ -221,21 +294,23 @@ Configure automatic email notifications:
 ## 📝 Examples
 
 ### Basic Usage
+
 ```powershell
 # Test mode execution
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath ".\users.csv" -OutputFolderPath ".\output" -Test
+Invoke-ADGroupOperation -InputCsvPath ".\users.csv" -OutputFolderPath ".\output" -Test
 
 # Live execution with custom retry settings
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath ".\users.csv" -OutputFolderPath ".\output" -MaxRetries 5 -RetryDelaySeconds 10
+Invoke-ADGroupOperation -InputCsvPath ".\users.csv" -OutputFolderPath ".\output" -MaxRetries 5 -RetryDelaySeconds 10
 
-# Parallel processing for large datasets
-.\Add-ForeignUsertoFileShareADGroup.ps1 -InputCsvPath ".\large_users.csv" -OutputFolderPath ".\output" -ParallelProcessing
+# Enhanced execution with validation
+Invoke-ADGroupOperation -InputCsvPath ".\users.csv" -OutputFolderPath ".\output" -ValidateCredentials -TestConnectivity -ExponentialBackoff
 ```
 
 ### GUI Examples
+
 1. **Quick Setup**: Use default paths and run in test mode
-2. **Production Run**: Configure all settings, test email, then execute
-3. **Batch Processing**: Load large CSV, enable parallel processing
+2. **Production Run**: Configure all settings, test connectivity, then execute
+3. **Batch Processing**: Load large CSV, enable advanced validation
 4. **Monitoring**: Use logs tab for real-time monitoring
 
 ## 🔐 Security Considerations
